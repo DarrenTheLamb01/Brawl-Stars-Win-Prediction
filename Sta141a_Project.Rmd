@@ -1,0 +1,71 @@
+---
+title: "Sta141a_Project"
+author: "Justin Yee"
+date: "2025-05-12"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# Load Libraries
+library(knitr)
+library(rprojroot)
+library(dplyr)
+library(ggplot2)
+
+# Set the root directory to the RStudio Project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+
+```{r}
+getwd()
+```
+
+Importing Dataset
+
+```{r}
+metadata = read.csv("player_metadata.csv")
+battlelogs = read.csv("raw_battlelogs.csv")
+```
+
+Cleaning metadata dataset
+
+```{r}
+# Dropping the irrelevant columns from the dataset
+clean_metadata = subset(metadata, select = -c(name, nameColor, club_tag, club_name, icon_id, bestTimeAsBigBrawler))
+
+head(clean_metadata)
+# Dropping all rows from metadata that had a null value in the column highestPowerPlayPoints
+clean_metadata = clean_metadata %>%
+  filter(!is.na(highestPowerPlayPoints))
+
+# Sanity check
+colSums(is.na(clean_metadata))
+str(clean_metadata)
+```
+
+Cleaning battlelogs dataset
+
+```{r}
+# Dropping the following columns since more than 50% of the data are null values
+clean_battlelogs = subset(battlelogs, select = -c(battle_rank, battle_players, battle_starPlayer, battle_bigBrawler_tag, battle_bigBrawler_name, battle_bigBrawler_brawler_id, battle_bigBrawler_brawler_name, battle_bigBrawler_brawler_power, battle_bigBrawler_brawler_trophies, battle_level_name, battle_level_id, battle_starPlayer_name))
+
+head(clean_battlelogs)
+# Fill na in column battle_trophyChange with 0
+clean_battlelogs$battle_trophyChange[is.na(clean_battlelogs$battle_trophyChange)] = 0
+# Dropping rows that has null battle_duration and null battle_starPlayer_brawler_id since they
+# may be invalid matches (errors)
+clean_battlelogs = clean_battlelogs %>%
+  filter(!is.na(battle_duration), !is.na(battle_starPlayer_brawler_id))
+colSums(is.na(clean_battlelogs))
+str(clean_battlelogs)
+```
+
+Joining Data by Player ID
+
+```{r}
+merged_data = inner_join(clean_metadata, clean_battlelogs, by = "player_id")
+head(merged_data)
+
+```
+
