@@ -29,7 +29,9 @@ Install Required Packages for Your Section Individually.
 
 ---
 
-### 4. Render the main R Markdown report
+### 4. Render the main R Markdown report (& additionals)
+
+i.e.
 
 ```r
 rmarkdown::render("Project Script.Rmd")
