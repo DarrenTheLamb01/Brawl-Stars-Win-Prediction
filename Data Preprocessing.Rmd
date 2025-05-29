@@ -1,0 +1,146 @@
+---
+title: "Sta141a_Project"
+author: "Justin Yee"
+date: "2025-05-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Miscellaneous
+library(knitr)
+library(rprojroot)
+
+# Data Cleaning & Dataframes
+library(tidyverse)
+library(stringr)
+library(lubridate)
+
+# Data Storage
+library(data.table)
+
+# Diagnostics & Plots
+# library(ggplot2)
+# library(caret)
+# library(MLmetrics)
+# library(pROC)
+# library(PRROC)
+# library(scoring)
+# library(gains)
+# library(vip)
+
+# Decision Trees
+# library(rpart)
+# library(rpart.plot)
+
+# Random Forest
+# library(randomForest)
+# library(ranger)
+
+# Set the root directory to the RStudio Project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+# Load Datasets
+```{r}
+# Load metadata and battlelogs
+metadata = read.csv("player_metadata.csv")
+battlelogs = read.csv("raw_battlelogs.csv")
+```
+
+# Data Cleaning
+```{r}
+# Clean metadata
+# Drop irrelevant columns from dataset
+clean_metadata = 
+  subset(
+    metadata, 
+    select = -c(name, nameColor, club_tag, club_name, icon_id, bestTimeAsBigBrawler)
+  )
+
+# Drop all rows with NA in highestPowerPlayPoints
+clean_metadata = clean_metadata %>%
+  filter(!is.na(highestPowerPlayPoints))
+
+# Sanity check
+colSums(is.na(clean_metadata))
+```
+
+```{r}
+# Clean battle logs
+# Drop columns with >50% NA
+clean_battlelogs = 
+  subset(
+    battlelogs, 
+    select = -c(battle_rank, battle_players, battle_starPlayer, battle_bigBrawler_tag, battle_bigBrawler_name, battle_bigBrawler_brawler_id, battle_bigBrawler_brawler_name, battle_bigBrawler_brawler_power, battle_bigBrawler_brawler_trophies, battle_level_name, battle_level_id, battle_starPlayer_name)
+    )
+
+# Convert battleTime into datetime for test train split
+clean_battlelogs$battleTime <- ymd_hms(str_remove(clean_battlelogs$battleTime, "\\.\\d+Z$"), tz = "UTC")
+
+# Fill NAs in battle_trophyChange with 0
+clean_battlelogs$battle_trophyChange[is.na(clean_battlelogs$battle_trophyChange)] = 0
+
+# Drop rows with NA battle_duration & NA battle_starPlayer_brawler_id as possible errors
+clean_battlelogs = clean_battlelogs %>%
+  filter(!is.na(battle_duration), !is.na(battle_starPlayer_brawler_id))
+
+# Sanity Check
+colSums(is.na(clean_battlelogs))
+```
+
+```{r}
+# Incorporate metadata
+merged_data = inner_join(clean_metadata, clean_battlelogs, by = "player_id", relationship = "many-to-many")
+
+# Sanity check
+head(merged_data)
+```
+
+# Feature Selection
+```{r}
+# Remove unnecessary columns
+merged_data <- 
+  subset(
+    merged_data,
+    select = -c(player_id, brawlers, event_id, event_mode, battle_type, battle_starPlayer_tag, battle_starPlayer_brawler_id, battle_starPlayer_brawler_name, battle_starPlayer_brawler_power, battle_starPlayer_brawler_trophies, battle_teams)
+  )
+
+# Ordinally encode categorical columns and target 
+merged_data <- merged_data %>%
+  mutate(across(where(is.character), ~ as.numeric(factor(.x))))
+```
+
+# Diagnostics
+```{r}
+# Plot class distribution (1: defeat, 2: draw, 3: victory)
+table(merged_data$battle_result)
+prop.table(table(merged_data$battle_result))
+```
+
+# Test Train Split
+```{r}
+# Sort columns by battle time for test train split
+sorted_data <- merged_data[order(merged_data$battleTime), ]
+
+# Split data into train, validation, and test sets (60%, 20%, 20%)
+n <- nrow(sorted_data)
+train_end <- floor(0.6 * n)
+valid_end <- floor(0.8 * n)
+
+train <- sorted_data[1:train_end, ]
+validation <- sorted_data[(train_end + 1):valid_end, ]
+test <- sorted_data[(valid_end + 1):n, ]
+```
+
+# Write Data to CSVs
+```{r}
+# Create Directory
+dir.create("data", showWarnings = FALSE, recursive = TRUE)
+
+# Write datasets
+fwrite(train, "data/train.csv.gz")
+fwrite(validation, "data/validation.csv.gz")
+fwrite(test, "data/test.csv.gz")
+```
+
+
