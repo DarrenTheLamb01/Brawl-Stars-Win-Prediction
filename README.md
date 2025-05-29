@@ -17,7 +17,7 @@ cd Brawl-Stars-Win-Prediction
 
 ---
 
-### 3. Install required packages
+### 3. Install required packages (Optional)
 
 In the R console, run:
 
