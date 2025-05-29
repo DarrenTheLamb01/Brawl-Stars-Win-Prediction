@@ -22,12 +22,6 @@ cd Brawl-Stars-Win-Prediction
 In the R console, run:
 
 ```r
-install.packages(c("tidyverse", "rmarkdown", "here", "ggplot2"))
-```
-
-Or, if provided, run a setup script:
-
-```r
 source("install_packages.R")
 ```
 
@@ -36,10 +30,8 @@ source("install_packages.R")
 ### 4. Render the main R Markdown report
 
 ```r
-rmarkdown::render("your-document.Rmd")
+rmarkdown::render("Project Script.Rmd")
 ```
-
-> Replace `"your-document.Rmd"` with your actual R Markdown file name.
 
 ---
 
