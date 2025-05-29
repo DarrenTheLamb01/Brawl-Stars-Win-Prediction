@@ -17,13 +17,15 @@ cd Brawl-Stars-Win-Prediction
 
 ---
 
-### 3. Install required packages (Optional)
+### 3. Install required packages
 
 In the R console, run:
 
 ```r
-source("install_packages.R")
+install.packages(c("rmarkdown", "here", "rprojroot"))
 ```
+
+Install Required Packages for Your Section Individually.
 
 ---
 
