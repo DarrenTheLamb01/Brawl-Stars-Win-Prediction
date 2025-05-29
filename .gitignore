@@ -1,0 +1,29 @@
+# Ignore large data files
+*.csv
+*.rds
+*.rda
+*.xlsx
+*.feather
+*.parquet
+*.hdf5
+*.zip
+*.tar.gz
+
+# Ignore temporary & system files
+.RData
+.Rhistory
+.Rproj.user/
+.DS_Store (Mac)
+Thumbs.db (Windows)
+
+# Ignore compiled files (C++, Python, etc.)
+*.so
+*.o
+*.dll
+*.pyc
+
+# Ignore large directories
+data/raw/
+data/processed/
+output/
+logs/
