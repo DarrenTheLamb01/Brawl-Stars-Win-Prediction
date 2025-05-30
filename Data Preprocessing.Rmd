@@ -19,6 +19,7 @@ library(lubridate)
 library(data.table)
 
 # Diagnostics & Plots
+library(corrplot)
 # library(ggplot2)
 # library(caret)
 # library(MLmetrics)
@@ -50,6 +51,8 @@ battlelogs = read.csv("raw_battlelogs.csv")
 # Data Cleaning
 ```{r}
 # Clean metadata
+paste("Metadata na count: ", sum(is.na(metadata)))
+paste("Battlelogs na count: ", sum(is.na(battlelogs)))
 # Drop irrelevant columns from dataset
 clean_metadata = 
   subset(
@@ -92,8 +95,31 @@ colSums(is.na(clean_battlelogs))
 # Incorporate metadata
 merged_data = inner_join(clean_metadata, clean_battlelogs, by = "player_id", relationship = "many-to-many")
 
-# Sanity check
-head(merged_data)
+# Ordinally encode categorical columns and target 
+merged_data <- merged_data %>%
+  mutate(across(where(is.character), ~ as.numeric(factor(.x))))
+
+# Creating chart to check correlations between each feat
+num_vars <- names(merged_data)[sapply(merged_data, is.numeric)]
+corr_data <- merged_data[, c(num_vars, "battle_result")]
+corr_matrix <- cor(corr_data, use = "complete.obs")
+corrplot(corr_matrix,
+         method = "color",
+         type = "upper",
+         tl.col = "black",
+         tl.srt = 45,
+         tl.cex = 0.7
+)
+
+
+bt <- factor(merged_data$battle_result,
+                                    levels = c(1, 2, 3),
+                                    labels = c("win", "draw", "loss"))
+
+barplot(table(bt),
+        col = "lightgrey",
+        main = "Battle Result Counts",
+        ylab = "Frequency")
 ```
 
 # Feature Selection
@@ -104,17 +130,15 @@ merged_data <-
     merged_data,
     select = -c(player_id, brawlers, event_id, event_mode, battle_type, battle_starPlayer_tag, battle_starPlayer_brawler_id, battle_starPlayer_brawler_name, battle_starPlayer_brawler_power, battle_starPlayer_brawler_trophies, battle_teams)
   )
-
-# Ordinally encode categorical columns and target 
-merged_data <- merged_data %>%
-  mutate(across(where(is.character), ~ as.numeric(factor(.x))))
 ```
 
 # Diagnostics
 ```{r}
 # Plot class distribution (1: defeat, 2: draw, 3: victory)
+head(merged_data)
 table(merged_data$battle_result)
 prop.table(table(merged_data$battle_result))
+
 ```
 
 # Test Train Split
