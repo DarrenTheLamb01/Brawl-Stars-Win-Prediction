@@ -120,6 +120,8 @@ barplot(table(bt),
         col = "lightgrey",
         main = "Battle Result Counts",
         ylab = "Frequency")
+
+head(merged_data)
 ```
 
 # Feature Selection
@@ -128,7 +130,7 @@ barplot(table(bt),
 merged_data <- 
   subset(
     merged_data,
-    select = -c(player_id, brawlers, event_id, event_mode, battle_type, battle_starPlayer_tag, battle_starPlayer_brawler_id, battle_starPlayer_brawler_name, battle_starPlayer_brawler_power, battle_starPlayer_brawler_trophies, battle_teams)
+    select = -c(player_id, brawlers, event_id, event_mode, battle_type, battle_starPlayer_tag, battle_starPlayer_brawler_id, battle_starPlayer_brawler_name, battle_starPlayer_brawler_power, battle_starPlayer_brawler_trophies, battle_teams, highestPowerPlayPoints, highestTrophies, expLevel, expPoints, bestRoboRumbleTime, battle_trophyChange, isQualifiedFromChampionshipChallenge, battleTime)
   )
 ```
 
@@ -143,8 +145,8 @@ prop.table(table(merged_data$battle_result))
 
 # Test Train Split
 ```{r}
-# Sort columns by battle time for test train split
-sorted_data <- merged_data[order(merged_data$battleTime), ]
+# Sort columns by battle durations for test train split
+sorted_data <- merged_data[order(merged_data$battle_duration), ]
 
 # Split data into train, validation, and test sets (60%, 20%, 20%)
 n <- nrow(sorted_data)
