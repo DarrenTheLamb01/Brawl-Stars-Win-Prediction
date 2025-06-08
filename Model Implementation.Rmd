@@ -1,0 +1,156 @@
+---
+title: "STA141A.pt2"
+author: "Darren"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Miscellaneous
+library(knitr)
+library(rprojroot)
+
+# Dataframe
+library(dplyr)
+
+# Models
+library(glmnet)
+library(class)
+library(caret)
+library(nnet)     
+library(xgboost)
+library(randomForest)
+library(ranger)
+
+# Model Eval
+library(vip)
+library(MLmetrics)
+library(Metrics)     
+
+# Set the root directory to the RStudio Project directory
+#knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+# Load datasets
+```{r}
+# load data
+train <- read.csv(gzfile("data/train.csv.gz"))
+val <- read.csv(gzfile("data/validation.csv.gz"))
+test <- read.csv(gzfile("data/test.csv.gz"))
+
+# ts so ahh
+train$battle_result <- as.factor(train$battle_result)
+val$battle_result <- as.factor(val$battle_result)
+test$battle_result <- as.factor(test$battle_result)
+
+
+# decrease data size
+train <- train %>% sample_frac(0.05)
+val <- val %>% sample_frac(0.05)
+test  <- test  %>% sample_frac(0.05)
+```
+
+# Model Selection
+
+# Logistic Regression
+```{r}
+# Train multi-nomial logistic regression model
+set.seed(123)
+log_model <- train(
+  battle_result ~ ., 
+  data = train,
+  method = "multinom",
+  trControl = trainControl(method = "none"),  # no resampling
+  trace = FALSE
+)
+
+# Convert Factor to One-Hot Matrix 
+true_matrix_val <- model.matrix(~ battle_result - 1, data = val)
+true_matrix_test <- model.matrix(~ battle_result - 1, data = test)
+
+# Predict on validation set
+log_preds <- predict(log_model, val)
+log_probs <- predict(log_model, val, type = "prob")
+
+# Evaluate on validation set
+val_acc <- confusionMatrix(log_preds, val$battle_result)$overall["Accuracy"]
+val_logloss <- logLoss(true_matrix_val, as.matrix(log_probs))
+
+# Print validation performance
+cat("Validation Accuracy:", round(val_acc, 4), "\n")
+cat("Validation Log Loss:", round(val_logloss, 4), "\n")
+
+# Predict on test set
+test_preds <- predict(log_model, test)
+test_probs <- predict(log_model, test, type = "prob")
+
+# Evaluate on test set
+test_acc <- confusionMatrix(test_preds, test$battle_result)$overall["Accuracy"]
+test_logloss <- logLoss(true_matrix_test, as.matrix(log_probs))
+
+# Print test performance
+cat("Test Accuracy:", round(test_acc, 4), "\n")
+cat("Test Log Loss:", round(test_logloss, 4), "\n")
+```
+# KNN
+
+```{r}
+# Define training control
+ctrl <- trainControl(method = "cv", number = 5)
+
+# Train the KNN model
+knn_model <- train(
+  battle_result ~ .,
+  data = train,
+  method = "knn",
+  trControl = ctrl,
+  tuneLength = 5                # try 5 different values
+)
+
+print(knn_model)
+#plot(knn_model)
+
+pred <- predict(knn_model, newdata = test)
+confusionMatrix(pred, test$battle_result)
+```
+
+# Random Forest
+```{r}
+# This may take a few minutes to run
+
+ctrl <- trainControl(
+  method = "cv",        # 5-fold cross-validation
+  number = 5,
+  classProbs = TRUE,
+  summaryFunction = multiClassSummary
+)
+
+train$battle_result <- factor(paste0("class_", train$battle_result))
+test$battle_result  <- factor(paste0("class_", test$battle_result))
+
+# Training Random Forest Model
+rf_model <- train(
+  battle_result ~ .,
+  data = train,
+  method = "rf",
+  trControl = ctrl,
+  tuneLength = 5,             # try 5 values
+  ntree = 100
+)
+```
+
+```{r}
+# Model Evaluation
+# Predictions
+rf_preds <- predict(rf_model, newdata = test)
+rf_probs <- predict(rf_model, newdata = test, type = "prob")
+
+# Confusion matrix
+conf_matrix <- confusionMatrix(rf_preds, test$battle_result)
+
+# Print accuracy
+print(conf_matrix$overall["Accuracy"])
+print(rf_model)
+plot(rf_model)
+```
+
