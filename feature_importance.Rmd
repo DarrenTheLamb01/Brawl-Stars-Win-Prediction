@@ -1,0 +1,144 @@
+---
+title: "STA141A.pt3"
+author: "Edward"
+date: "2025-06-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Miscellaneous
+library(knitr)
+library(rprojroot)
+library(ggplot2)
+library(shiny)
+library(pdp)
+# Dataframe
+library(dplyr)
+# Models
+library(glmnet)
+library(class)
+library(caret)
+library(nnet)     
+library(xgboost)
+library(randomForest)
+library(ranger)
+# Model Eval
+library(vip)
+library(MLmetrics)
+library(Metrics)     
+
+# Set the root directory to the RStudio Project directory
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+```{r}
+rf_model <- readRDS("rf_model.rds")
+```
+
+```{r}
+train <- read.csv(gzfile("data/train.csv.gz"))
+val <- read.csv(gzfile("data/validation.csv.gz"))
+test <- read.csv(gzfile("data/test.csv.gz"))
+
+# ts so ahh
+train$battle_result <- as.factor(train$battle_result)
+val$battle_result <- as.factor(val$battle_result)
+test$battle_result <- as.factor(test$battle_result)
+
+
+# decrease data size
+train <- train %>% sample_frac(0.05)
+val <- val %>% sample_frac(0.05)
+test  <- test  %>% sample_frac(0.05)
+```
+
+
+#Feature Importance 
+```{r}
+#
+vip(rf_model, geom = "col", aesthetics = list(fill = "blue")) +
+  ggtitle("Feature Importances")+scale_x_discrete(labels = c(
+    "battle_duration" = "Battle Duration",
+    "trophies" = "Trophies",
+    "X3vs3Victories" = "3v3 Victories",
+    "soloVictories" = "Solo Victories",
+    "event_map" = "Event Map",
+    "duoVictories" = "Duo Victories",
+    "battle_mode" = "Battle Mode"
+  ))
+```
+
+```{r}
+pdp_battle <- partial(rf_model, pred.var = "battle_duration", train = train, prob = TRUE, which.class = "class_1")
+ggplot(pdp_battle, aes(x = battle_duration, y = yhat)) +
+  geom_line(color = "blue") +
+  labs(title = "Effect of Battle Duration on Win Probability", x = "Battle Duration", y = "Predicted Probability of Win") +
+  theme_minimal()
+
+pdp_trophies <- partial(rf_model, pred.var = "trophies", train = train, prob = TRUE, which.class = "class_1")
+ggplot(pdp_trophies, aes(x = trophies, y = yhat)) +
+  geom_line(color = "blue") +
+  labs(title = "Effect of Trophies on Win Probability", x = "Trophies", y = "Predicted Probability of Win") +
+  theme_minimal()
+
+pdp_3v3 <- partial(rf_model, pred.var = "X3vs3Victories", train = train, prob = TRUE, which.class = "class_1")
+ggplot(pdp_3v3, aes(x = X3vs3Victories, y = yhat)) +
+  geom_line(color = "blue") +
+  labs(title = "Effect of 3v3s on Win Probability", x = "3v3", y = "Predicted Probability of Win") +
+  theme_minimal()
+```
+
+```{r}
+predictoutcome <- function(newdata, model = rf_model) {
+  changelabel <- c("class_1" = "Win", "class_2" = "Draw", "class_3" = "Loss")
+  newpred <- predict(model, newdata = newdata)
+  changelabels <- changelabel[as.character(newpred)]
+  return(changelabels)
+}
+
+predictoutcome(test[1:5, ])
+```
+
+#Model Deployment 
+```{r}
+
+ui <- fluidPage(
+  titlePanel("Brawl Stars Predictor"),
+  
+  sidebarLayout(
+    mainPanel(
+      verbatimTextOutput("prediction_output")),
+    sidebarPanel(
+      numericInput("trophies", "Trophies",value=0),
+      numericInput("X3vs3Victories", "3v3 Victories", value = 0),
+      numericInput("soloVictories", "Solo Victories", value = 0),
+      numericInput("duoVictories", "Duo Victories", value = 0),
+      numericInput("event_map", "Event Map", value = 0),
+      numericInput("battle_mode", "Battle Mode", value = 0),
+      numericInput("battle_duration", "Battle Duration", value = 0),
+      actionButton("predict", "Predict Outcome"))
+  ),
+)
+
+server <- function(input, output) {
+  observeEvent(input$predict, {
+    
+    new_data <- data.frame(
+      trophies = input$trophies,
+      X3vs3Victories = input$X3vs3Victories,
+      soloVictories = input$soloVictories,
+      duoVictories = input$duoVictories,
+      event_map = input$event_map,
+      battle_mode = input$battle_mode,
+      battle_duration = input$battle_duration
+    )
+    
+    result <- predictoutcome(new_data)
+    
+    output$prediction_output <- renderText({
+      paste("→", result)})
+  })
+}
+shinyApp(ui = ui, server = server)
+```
+
