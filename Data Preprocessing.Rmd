@@ -94,7 +94,9 @@ colSums(is.na(clean_battlelogs))
 ```{r}
 # Incorporate metadata
 merged_data = inner_join(clean_metadata, clean_battlelogs, by = "player_id", relationship = "many-to-many")
+```
 
+```{r}
 # Ordinally encode categorical columns and target 
 merged_data <- merged_data %>%
   mutate(across(where(is.character), ~ as.numeric(factor(.x))))
@@ -132,6 +134,8 @@ merged_data <-
     merged_data,
     select = -c(player_id, brawlers, event_id, event_mode, battle_type, battle_starPlayer_tag, battle_starPlayer_brawler_id, battle_starPlayer_brawler_name, battle_starPlayer_brawler_power, battle_starPlayer_brawler_trophies, battle_teams, highestPowerPlayPoints, highestTrophies, expLevel, expPoints, bestRoboRumbleTime, battle_trophyChange, isQualifiedFromChampionshipChallenge, battleTime)
   )
+
+str(merged_data)
 ```
 
 # Diagnostics
@@ -140,6 +144,13 @@ merged_data <-
 head(merged_data)
 table(merged_data$battle_result)
 prop.table(table(merged_data$battle_result))
+# Pair-wise charts for each features
+ftp = merged_data[, c("trophies", "X3vs3Victories", "soloVictories", "duoVictories", "event_map", "battle_mode", "battle_duration")]
+pairs(
+  ftp,
+  col = merged_data$battle_result,
+  main = "Pairwise Plot of Features by Battle Result"
+)
 
 ```
 
